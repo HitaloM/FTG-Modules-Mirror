@@ -4,6 +4,8 @@
 # you may not use this file except in compliance with the License.
 #
 
+# requires: jikanpy pendulum html_telegraph_poster
+
 import asyncio
 import html
 import json
@@ -30,10 +32,6 @@ from telethon.utils import is_image, is_video
 
 from userbot import CMD_HELP
 from userbot.events import register
-
-# requires: jikanpy
-# requires: pendulum
-# requires: html_telegraph_poster
 
 jikan = Jikan()
 
