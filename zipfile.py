@@ -7,19 +7,89 @@
 
 # Requires: zipfile
 
+import math
 import asyncio
 import os
 import time
 import zipfile
+import re
+import hashlib
 from datetime import date
+from telethon.tl.types import DocumentAttributeFilename
 
-from userbot import CMD_HELP, TEMP_DOWNLOAD_DIRECTORY, ZIP_DOWNLOAD_DIRECTORY, bot
+from userbot import CMD_HELP, bot
 from userbot.events import register
-from userbot.utils import progress
+
+TEMP_DOWNLOAD_DIRECTORY = './downloads/'
+ZIP_DOWNLOAD_DIRECTORY = './downloads/zip'
 
 # ====================
 today = date.today()
 # ====================
+
+
+def humanbytes(size: int) -> str:
+    if size is None or isinstance(size, str):
+        return ""
+
+    power = 2**10
+    raised_to_pow = 0
+    dict_power_n = {0: "", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
+    while size > power:
+        size /= power
+        raised_to_pow += 1
+    return str(round(size, 2)) + " " + dict_power_n[raised_to_pow] + "B"
+
+
+def time_formatter(seconds: int) -> str:
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    tmp = (
+        ((str(days) + " day(s), ") if days else "") +
+        ((str(hours) + " hour(s), ") if hours else "") +
+        ((str(minutes) + " minute(s), ") if minutes else "") +
+        ((str(seconds) + " second(s), ") if seconds else "")
+    )
+    return tmp[:-2]
+
+
+async def progress(
+    current, total, gdrive, start, prog_type,
+    file_name=None, is_cancelled=False
+):
+    now = time.time()
+    diff = now - start
+    if is_cancelled is True:
+        raise CancelProcess
+
+    if round(diff % 10.00) == 0 or current == total:
+        percentage = current * 100 / total
+        speed = current / diff
+        elapsed_time = round(diff)
+        eta = round((total - current) / speed)
+        if 'upload' in prog_type.lower():
+            status = 'Uploading'
+        elif 'download' in prog_type.lower():
+            status = 'Downloading'
+        else:
+            status = 'Unknown'
+        progress_str = "`{0}` | [{1}{2}] `{3}%`".format(
+            status,
+            ''.join(["■" for i in range(
+                    math.floor(percentage / 10))]),
+            ''.join(["▨" for i in range(
+                    10 - math.floor(percentage / 10))]),
+            round(percentage, 2))
+        tmp = (
+            f"{progress_str}\n"
+            f"`{humanbytes(current)} of {humanbytes(total)}"
+            f" @ {humanbytes(speed)}`\n"
+            f"`ETA` -> {time_formatter(eta)}\n"
+            f"`Duration` -> {time_formatter(elapsed_time)}"
+        )
+        await gdrive.edit(f"`{prog_type}`\n\n"
+                          f"`Status`\n{tmp}")
 
 
 @register(outgoing=True, pattern=r"^\.compress(?: |$)(.*)")
